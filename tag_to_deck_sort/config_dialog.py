@@ -39,10 +39,21 @@ def _deck_names() -> List[str]:
 
 
 def _tag_list() -> List[str]:
-    """Return sorted list of tags in the collection."""
+    """Return sorted list of tags in the collection (original casing)."""
     if not mw.col:
         return []
     return sorted(mw.col.tags.all())
+
+
+def _tag_display_name(normalized_tag: str) -> str:
+    """Return the original-cased tag from the collection if present, else normalized_tag."""
+    if not normalized_tag:
+        return normalized_tag
+    low = normalized_tag.lower()
+    for t in _tag_list():
+        if t.lower() == low:
+            return t
+    return normalized_tag
 
 
 def _get_current_config() -> Dict[str, Any]:
@@ -185,10 +196,13 @@ class TagDeckConfigDialog(QDialog):
                 continue
             seen.add(tag_lower)
             deck = mapping.get(tag_lower) or mapping.get(tag) or ""
-            self._add_mapping_row(tag=tag if isinstance(tag, str) else tag_lower, deck=deck)
+            # Show original casing from collection in UI; config still stores normalized
+            display_tag = _tag_display_name(tag_lower)
+            self._add_mapping_row(tag=display_tag, deck=deck)
         for tag, deck in mapping.items():
             if tag.lower() not in seen:
-                self._add_mapping_row(tag=tag, deck=deck)
+                display_tag = _tag_display_name(tag)
+                self._add_mapping_row(tag=display_tag, deck=deck)
 
         # Protected decks
         protected = set(cfg.get("protected_decks") or [])
