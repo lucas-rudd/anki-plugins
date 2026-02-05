@@ -1,0 +1,30 @@
+---
+description: Anki add-on project layout and syncing dev add-ons to Anki
+globs: "**/*.py","**/config.json","**/meta.json","sync-anki-addons.sh"
+alwaysApply: true
+---
+
+# Anki Add-on: Project Layout and Sync
+
+## Add-on folder layout
+
+- Each add-on lives in its own **directory** (e.g. `tag_to_deck_sort/`). That directory name is the add-on ID Anki uses.
+- Typical contents:
+  - **`__init__.py`** — entry point; register hooks, menu actions, and `setConfigAction` here.
+  - **`config.json`** — default config (optional; if missing, getConfig returns None until writeConfig is used).
+  - **`meta.json`** — written by Anki when the user edits config in the GUI or when your code calls writeConfig; do not edit by hand for normal use.
+  - **`README.md`** — install and usage (e.g. copy folder to addons21, or use project sync script).
+- Submodules (e.g. `config_dialog.py`) can live in the same folder; use package-relative imports and the same add-on module name for getConfig/writeConfig in submodules (e.g. `__name__.rsplit(".", 1)[0]`).
+
+## Syncing dev add-ons to Anki (this repo)
+
+- **Do not** replace the whole `addons21` folder; only symlink **per add-on** so other installed add-ons are untouched.
+- Use the project script **`./sync-anki-addons.sh`** from the repo root. It:
+  - Symlinks each **subdirectory** of the repo (e.g. `tag_to_deck_sort`) to `~/Library/Application Support/Anki2/addons21/<name>`.
+  - Skips subdirs that are not add-ons (e.g. `.git`, `.cursor`, `assets`).
+  - Overwrites only **existing symlinks**; if the target is a real directory (e.g. an AnkiWeb-installed add-on), it skips it.
+- After running the script, **restart Anki** to load changes. Developing in this repo and running the script gives a single-command way to apply updates.
+
+## macOS add-ons path
+
+- Anki 2.1 add-ons directory: `~/Library/Application Support/Anki2/addons21/`.

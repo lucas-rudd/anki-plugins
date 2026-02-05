@@ -1,0 +1,31 @@
+---
+description: Anki add-on Qt/PyQt UI — dialogs, modality, and PyQt6 gotchas
+globs: "**/*.py"
+alwaysApply: true
+---
+
+# Anki Add-on: Qt UI
+
+Use this when building config dialogs or other UI for Anki add-ons. Import from **`aqt.qt`** (not PyQt6 directly) for compatibility across Anki's Qt builds.
+
+## Config dialog: modal and on top
+
+- **Use `exec()`, not `open()`.**  
+  `open()` shows the window and returns immediately; the Add-ons window can stay in front and the config dialog appears behind it, so the user cannot interact with it.
+- **Correct:** `dlg.exec()` — runs a modal event loop; the config dialog stays on top and blocks the Add-ons window until closed.
+- Optionally call `dlg.raise_()` and `dlg.activateWindow()` before `exec()` so the dialog is clearly in front (helps on some window managers).
+
+## Garbage collection
+
+- **Keep a reference to top-level dialogs** so they are not collected. Per [addon-docs.ankiweb.net/qt.html](https://addon-docs.ankiweb.net/qt.html): assign to an existing object, e.g. `mw.my_config_dialog = dlg` before `dlg.exec()`.
+- When you give a dialog a parent (e.g. `QDialog(mw)`), the parent keeps a reference; keeping an extra reference on `mw` is still recommended for config dialogs opened from the Add-ons window.
+
+## PyQt6: check state enum
+
+- **Do not use `QListWidgetItem.CheckState`.** In PyQt6 it does not exist; you get `AttributeError: type object 'QListWidgetItem' has no attribute 'CheckState'`.
+- **Use `Qt.CheckState`:** import `Qt` from `aqt.qt`, then use `Qt.CheckState.Checked` and `Qt.CheckState.Unchecked` for `setCheckState()` and for comparing `item.checkState()`.
+
+## Display vs storage (e.g. tags)
+
+- Config may store **normalized** values (e.g. lowercase tags) for matching. In the UI, show **original casing** from the collection when available so the user sees e.g. `JLPT_N2` instead of `jlpt_n2`.
+- Implement a small helper: given a normalized key, look up the collection list (e.g. tags from `mw.col.tags.all()`) for a case-insensitive match and return the original string; otherwise return the normalized value. Use this when populating combo boxes or list rows from saved config.

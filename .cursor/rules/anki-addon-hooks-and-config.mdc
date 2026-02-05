@@ -1,0 +1,44 @@
+---
+description: Anki add-on hooks, config API, and collection access — avoid common startup and runtime errors
+globs: "**/*.py"
+alwaysApply: true
+---
+
+# Anki Add-on: Hooks and Config
+
+Use this when writing or modifying Anki add-ons in this repo. Reference [addon-docs.ankiweb.net](https://addon-docs.ankiweb.net/) and Anki source (e.g. `qt/tools/genhooks_gui.py`) for current APIs.
+
+## Hook registration — avoid crashes
+
+- **Do not wrap no-arg hooks in a lambda that takes an argument.**  
+  Anki calls some hooks with no arguments. If you use `lambda _: fn()`, Anki will call your lambda with one argument and it works by accident; if you use `lambda: fn()` and Anki passes one argument, you get `TypeError: <lambda>() missing 1 required positional argument`.
+- **Correct:** Register the function directly when the hook passes no args (e.g. `profile_did_open`).
+  ```python
+  gui_hooks.profile_did_open.append(_on_profile_did_open)  # _on_profile_did_open() takes no args
+  ```
+- **Wrong:** `gui_hooks.profile_did_open.append(lambda _: _on_profile_did_open())` can cause "missing 1 required positional argument" at startup.
+
+## Hook API changes (Anki 25+)
+
+- **`gui_hooks.note_did_update` does not exist** in current Anki. Using it causes:
+  `AttributeError: module 'aqt.gui_hooks' has no attribute 'note_did_update'`.
+- **Use `gui_hooks.editor_did_update_tags`** when you need to react to tag changes in the editor. It receives the note:
+  ```python
+  gui_hooks.editor_did_update_tags.append(lambda note: _sort_note_cards_by_tags(note.id))
+  ```
+- For bulk tag changes in the Browser, there is no direct equivalent; provide a Tools menu action to run the logic on the whole collection.
+- Before using any hook, confirm it exists in the Anki version you target (e.g. check `genhooks_gui.py` or addon docs).
+
+## Config API
+
+- **getConfig:** `mw.addonManager.getConfig(__name__)` in the add-on's `__init__.py`; in a submodule use the add-on package name (e.g. `ADDON_MODULE = __name__.rsplit(".", 1)[0]` and `getConfig(ADDON_MODULE)`).
+- **writeConfig:** `mw.addonManager.writeConfig(__name__, config_dict)`. User edits are stored in meta.json; getConfig merges with config.json defaults.
+- **Custom config UI:** `mw.addonManager.setConfigAction(__name__, my_options_function)`. When the user clicks Config, Anki calls your function instead of showing the JSON editor. Your function should open your dialog; config is still stored as JSON via writeConfig.
+- Avoid config keys starting with underscore (reserved).
+
+## Collection API (decks and tags)
+
+- **Deck names (sorted):** `[entry.name for entry in mw.col.decks.all_names_and_ids()]`.
+- **All tags (original casing):** `mw.col.tags.all()` (returns list of strings). Use this for UI display; matching in add-on logic is usually case-insensitive (normalize with `.lower()`).
+- **Moving cards:** `col.set_deck(card_ids, deck_id)`. Get deck id by name (and create if needed) with `col.decks.id(deck_name)`.
+- Guard with `if not mw.col: return` when running before a profile is open (e.g. in config dialog).
