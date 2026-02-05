@@ -105,9 +105,12 @@ class TagDeckConfigDialog(QDialog):
         layout.addWidget(prot_group)
 
         # --- Auto-sort ---
-        self._auto_sort_check = QCheckBox("Auto-sort when adding new cards")
-        layout.addWidget(self._auto_sort_check)
+        self._auto_sort_on_create_check = QCheckBox("Auto-sort when adding new cards")
+        layout.addWidget(self._auto_sort_on_create_check)
 
+        self._auto_sort_on_edit_check = QCheckBox("Auto-sort when editing tags")
+        layout.addWidget(self._auto_sort_on_edit_check)
+    
         # --- Buttons ---
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -227,10 +230,17 @@ class TagDeckConfigDialog(QDialog):
 
 
 def open_config_dialog() -> None:
-    """Open the config dialog (called when user clicks Config on the add-on)."""
+    """Open the config dialog (called when user clicks Config on the add-on).
+
+    Uses exec() so the dialog is modal and blocks the Add-ons window until
+    closed. Per addon-docs.ankiweb.net/qt.html we keep a reference on mw
+    to avoid the dialog being garbage-collected.
+    """
     if not mw.col:
         showWarning("Please open a profile first.")
         return
     dlg = TagDeckConfigDialog(mw)
-    mw.tag_to_deck_sort_config_dialog = dlg  # keep reference
-    dlg.exec()  # modal: stays on top, blocks add-ons window until closed
+    mw.tag_to_deck_sort_config_dialog = dlg  # keep reference (Qt GC note in docs)
+    dlg.raise_()
+    dlg.activateWindow()
+    dlg.exec()  # modal: blocks add-ons window until closed
