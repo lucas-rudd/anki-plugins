@@ -219,8 +219,19 @@ def _on_profile_did_open() -> None:
     _add_tools_menu_action()
 
 
+def _register_config_action() -> None:
+    """Use custom config dialog instead of raw JSON editor."""
+    from .config_dialog import open_config_dialog
+
+    mw.addonManager.setConfigAction(__name__, open_config_dialog)
+
+
 # Register hooks when the add-on is loaded.
+_register_config_action()
 gui_hooks.add_cards_did_add_note.append(_on_note_added)
 gui_hooks.profile_did_open.append(_on_profile_did_open)
-gui_hooks.note_did_update.append(lambda note: _sort_note_cards_by_tags(note.id))
+# note_did_update was removed in newer Anki; editor_did_update_tags runs when
+# tags are changed in the editor. Bulk tag changes in the browser can be
+# handled by running the Tools menu action.
+gui_hooks.editor_did_update_tags.append(lambda note: _sort_note_cards_by_tags(note.id))
 
