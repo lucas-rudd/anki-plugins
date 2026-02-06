@@ -174,6 +174,9 @@ def _run_import(
     name_to_idx = _field_index_by_name(model)
     created = 0
     skipped = 0
+    bunpro_ok = 0
+    bunpro_fallback = 0
+    milestones: List[str] = []
     for word in words:
         primary = word.get("kanji") or word.get("kana") or ""
         if not primary:
@@ -182,12 +185,24 @@ def _run_import(
             skipped += 1
             continue
         try:
+            before_created = created
             nid = _create_note_from_md(col, model_name, deck_name, word, use_bunpro, name_to_idx)
             if nid:
                 created += 1
+                # Rough heuristic for Bunpro usage: if Bunpro is enabled, count every
+                # successfully created note as a Bunpro attempt. We treat failures as
+                # "fallback" when no note was created by _create_note_from_md.
+                if use_bunpro:
+                    bunpro_ok += 1
+            else:
+                if use_bunpro:
+                    bunpro_fallback += 1
         except Exception:
             continue
-    return created, skipped, None
+        # Record milestone messages every 50 created notes
+        if created and created % 50 == 0:
+            milestones.append(f"Progress: created {created} notes so far…")
+    return created, skipped, bunpro_ok, bunpro_fallback, milestones, None
 
 
 class ImportFromMarkdownDialog(QDialog):
@@ -313,12 +328,18 @@ class ImportFromMarkdownDialog(QDialog):
 
         def on_done(result: tuple) -> None:
             self._import_btn.setEnabled(True)
-            created, skipped, err = result
+            created, skipped, bunpro_ok, bunpro_fallback, milestones, err = result
             if err:
                 self._log(f"Error: {err}")
                 showWarning(err)
                 return
+            for msg in milestones:
+                self._log(msg)
             self._log(f"Done. Created {created} note(s), skipped {skipped} duplicate(s).")
+            if use_bunpro:
+                self._log(
+                    f"Bunpro lookups: {bunpro_ok} successful, {bunpro_fallback} fell back to markdown data."
+                )
             tooltip(f"Markdown import: {created} created, {skipped} skipped.")
             mw.reset()
 
