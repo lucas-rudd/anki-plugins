@@ -125,6 +125,8 @@ def fetch_vocab(kanji: str) -> Optional[BunproVocab]:
     # Basic fields
     title = (reviewable.get("title") or kanji).strip()
     kana = (reviewable.get("kana") or "").strip()
+    furigana = (reviewable.get("furigana") or "").strip()  # e.g. "制服（せいふく）"
+    kana_furigana = furigana if furigana else kana
     jlpt_level = reviewable.get("jlpt_level")  # "N1", "N2", ...
     meaning = (reviewable.get("meaning") or "").strip()
 
@@ -167,6 +169,7 @@ def fetch_vocab(kanji: str) -> Optional[BunproVocab]:
 
     return BunproVocab(
         kanji=title,
+        kana_furigana=kana_furigana,
         kana=kana,
         pos=pos,
         english=meaning,
