@@ -82,11 +82,34 @@ def _set_note_field(note, name_to_index: dict, field_name: str, value: str) -> N
         note.fields[idx] = value
 
 
+def _jlpt_tag_for_level(level: Optional[str]) -> Optional[str]:
+    """Map Bunpro jlpt_level to the tag we add. Unclassified → no tag; A/E/other → JLPT_N1; N1–N5 → JLPT_N1–N5."""
+    if not level or not str(level).strip():
+        return None
+    s = str(level).strip()
+    if s.lower() == "unclassified":
+        return None
+    # Standard JLPT: N1, N2, N3, N4, N5 → keep as JLPT_N1, JLPT_N2, ...
+    if s.upper().startswith("N") and len(s) >= 2 and s[1:].isdigit():
+        n = int(s[1:])
+        if 1 <= n <= 5:
+            return f"JLPT_N{n}"
+    # A1, A2, A10, E1, etc. (vocab A1 and above) → JLPT_N1
+    return "JLPT_N1"
+
+
+def _normalize_pos(pos: str) -> str:
+    """Map JMdict adj-f (prenominal adjective) to 'adj'; keep adj-i and adj-na as-is."""
+    if not pos:
+        return pos
+    return pos.replace("adj-f", "adj")
+
+
 def _fill_note_from_vocab(note, name_to_index: dict, kanji: str, vocab: Any) -> None:
     """Fill a note's fields and tags from Bunpro vocab data. Modifies note in place."""
     _set_note_field(note, name_to_index, FIELD_KANJI_FURIGANA, kanji)
     _set_note_field(note, name_to_index, FIELD_KANA, vocab.kana)
-    _set_note_field(note, name_to_index, FIELD_POS, vocab.pos)
+    _set_note_field(note, name_to_index, FIELD_POS, _normalize_pos(vocab.pos))
     _set_note_field(note, name_to_index, FIELD_ENGLISH, vocab.english)
     if vocab.examples:
         if len(vocab.examples) >= 1:
@@ -99,8 +122,8 @@ def _fill_note_from_vocab(note, name_to_index: dict, kanji: str, vocab: Any) -> 
             _set_note_field(note, name_to_index, FIELD_EX2_JA, ja_plain)
             _set_note_field(note, name_to_index, FIELD_EX2_JA_FURIGANA, ja_furi)
             _set_note_field(note, name_to_index, FIELD_EX2_EN, en)
-    if vocab.jlpt_level:
-        tag = f"JLPT_{vocab.jlpt_level}"
+    tag = _jlpt_tag_for_level(vocab.jlpt_level)
+    if tag:
         tags = list(note.tags)
         if tag not in tags:
             tags.append(tag)
